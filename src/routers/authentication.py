@@ -100,34 +100,51 @@ async def callback(request: Request, db:Session=Depends(get_db)):
 async def create_account(user_details:Registration_login_password, db:Session=Depends(get_db)):
     if not user_details:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Required details are not provided")
+    if user_details.access_type.lower() == "user": 
+        try:
+            user_details = user_details.__dict__
+            user_details.update(
+                {
+                    "id": None,
+                    "verified_email":False,
+                    "picture":None,
+                    "provider":"Local",
+                    "name":user_details["given_name"] + " " +user_details["family_name"]
+                }
+            )
+            print(f"user_details_user: {user_details}")
+            user = await create_user(user_data=user_details, provider="Local",db=db)
+        except UserCreationError as e:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Something went wrong, it is not you, Please try after sometime{e}")
+    elif user_details.access_type.lower() == "provider":
+        try:
+            user_details = user_details.__dict__
+            user_details.update(
+                {
+                    "id": None,
+                    "verified_email":False,
+                    "picture":None,
+                    "provider":"Local",
+                    "name":user_details["given_name"] + " " +user_details["family_name"]
+                }
+            )
+            print(f"user_details_provider: {user_details}")
+            user = await create_user(user_data=user_details, provider="Local",db=db)
+        except UserCreationError as e:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Something went wrong, it is not you, Please try after sometime{e}")
+        payload= {
+            "id": user.user_id,
+            "verified_email":user.verified_email,
+            "access_type":user.access_type,
+            "picture": user.picture,
+            "provider": user.provider,
+            "email":user.email_address
+        }
     try:
-        user_details = user_details.__dict__
-        user_details.update(
-            {
-                "id": None,
-                "verified_email":False,
-                "picture":None,
-                "provider":"Local",
-                "name":user_details["given_name"] + " " +user_details["family_name"]
-            }
-        )
-        user = await create_user(user_data=user_details, provider="Local",db=db)
-    except UserCreationError as e:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Something went wrong, it is not you, Please try after sometime{e}")
-    
-
-    
-    payload= {
-        "id": user.user_id,
-        "verified_email":user.verified_email,
-        "picture": user.picture,
-        "provider": user.provider,
-        "email":user.email_address
-    }
-
-    token = create_token(user_data=payload)
-    print(token)
-    
+        token = create_token(user_data=payload)
+        print(token)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail = f" error creating token: {str(e)}")
     return {"access_token": token, "token_type": "bearer"} 
 
 @router.post("/login", status_code=status.HTTP_200_OK)
@@ -135,32 +152,40 @@ def log_into_account(login_details:login_details, db:Session=Depends(get_db)):
     if not login_details:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Please provide the details to login")
     try:
-        user_details = get_user_details(email_address=login_details.email_address, db=db)
+        user_details = get_user_details(email_address=login_details.email_address, access_type=login_details.access_type, db=db)
+        print(f"user_details: {user_details}")
     except UserCreationError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record doesn't exists, please register to Login")
-
-    checked_password = verify_password(password=login_details.password,hashed_password=user_details[6])
+    checked_password = verify_password(password=login_details.password,hashed_password=user_details["hashed_password"])
     if checked_password:
         payload= {
-            "id": user_details[1],
-            "verified_email":user_details[4],
-            "provider": user_details[5],
-            "email":user_details[0],
+            "id": user_details["user_id"],
+            "verified_email":user_details["verified_email"],
+            "provider": user_details["provider"],
+            "email":user_details["email_address"],
+            "access_type": user_details['access_type']
         }
         token = create_token(user_data=payload)
         print(token)
         return {"access_token": token, "token_type": "bearer"}
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
     
 @router.get("/decode_token/{token}")
 async def decode_token(token:str):
     token_decoder = TokenDecoder()
     return await token_decoder.decode_oauth_token(token=token)
 
-@router.post("/validate_token")
-async def validate_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    logger.info(f"inside validate_token: {credentials.credentials}")
-    return await validate_app_user(credentials)
+@router.get("/validate_token")
+async def validate_token(credentials: Request):
+    
+    if credentials.headers.get("Authorization") is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token is missing")
+    if credentials.headers.get("Authorization").startswith("Bearer "):
+        token = credentials.headers.get("Authorization").split(" ")[1]
+    else:
+        token = credentials.headers.get("Authorization")
+    return await validate_app_user(token)
 
 

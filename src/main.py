@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import models
 from models import engine
 from fastapi.middleware.cors import CORSMiddleware
-from routers import authentication, services
+from routers import project_services, authentication, provider_services
 from utils.logger import setup_logger
 from utils.rate_limit import lifespan
 from utils.middleware import CSRFMiddleware, RateLimitMiddleware
@@ -41,12 +41,13 @@ app.add_middleware(
 # app.add_middleware(CSRFMiddleware)   
 
 app.include_router(authentication.router, prefix="/api/v1", tags=["authentication"])
-app.include_router(services.router, prefix="/api/v1", tags=["Services"])
+app.include_router(project_services.router, prefix="/api/v1", tags=["Project Services"])
+app.include_router(provider_services.router, prefix="/api/v1", tags=["Provider Services"])
 
 @app.get("/")
 def read_root():
     return {"Welcome to fastapi"}
 
 if __name__ =="__main__":
-    uvicorn.run('main:app', port=8080, reload=True)
+    uvicorn.run('main:app', port=8082, reload=True)
          

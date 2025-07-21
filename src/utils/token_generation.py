@@ -71,19 +71,6 @@ async def token_validator(request: Request,token: HTTPAuthorizationCredentials =
     
     logger.info(f"request headers: {request.headers}")
     logger.info(f"token: {token}")
-    jira_token = request.headers.get('Jira_Authorization')
-    
-    if jira_token:
-        if jira_token.startswith("Bearer"):
-            jira_token = jira_token.split(" ")[1]
-        logger.info(f"data got from the request Regular token: {token.credentials}")
-        regular_token_details = await validate_app_user(token = token.credentials)
-        logger.info(f"regular token details: {regular_token_details}")
-        logger.info(f"data got from the request jira token: {request.headers.get('Jira_Authorization')}")
-        jira_token_details = await validate_app_user(token = jira_token)
-        logger.info(f"jira token details: {jira_token_details}")
-        logger.info(f"regular_login_token: {regular_token_details}, jira_token: {jira_token_details}")
-        return {"regular_login_token": regular_token_details, "jira_token": jira_token_details}
     regular_token = await validate_app_user(token = token.credentials)
     return {"regular_login_token": regular_token}
 
@@ -91,6 +78,7 @@ def hash_passwords(password:str):
     return pwd_context.hash(password)
 
 def verify_password(password:str, hashed_password:str):
+    [print(f"password: {password}, hashed_password: {hashed_password}")]
     return pwd_context.verify(password,hashed_password)
 
 
@@ -142,7 +130,6 @@ class TokenDecoder:
 
 async def validate_app_user(token:str):
     """Validate the app's JWT token"""
-    print("inside validate app user")
     credential_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
     try:
         # token = credentials.credentials
