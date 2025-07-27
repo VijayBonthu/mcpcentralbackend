@@ -88,12 +88,10 @@ async def create_project(request:Project, db:Session=Depends(get_db), current_us
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Service is currently facing an issue Please try again after sometime")
     
 @router.get("/project_key_validation/")
-async def get_api_key_details(api_key:str = Header(...),db:Session=Depends(get_db), current_user:dict = Depends(token_validator)):
+async def get_api_key_details(api_key:str = Header(...),db:Session=Depends(get_db)):
     """This endpoint is used to validate the API Key and return the user and project details"""
     if not api_key:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="API key is missing")
-    if current_user["regular_login_token"]["access_type"]!= 'user':
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You are not authorized to access this resource")
     masked_api_key = mask_key(key=api_key)
     try:
         api_details = db.query(models.ProjectDetails).filter_by(msecret_key=masked_api_key).first()

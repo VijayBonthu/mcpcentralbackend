@@ -132,14 +132,14 @@ async def create_account(user_details:Registration_login_password, db:Session=De
             user = await create_user(user_data=user_details, provider="Local",db=db)
         except UserCreationError as e:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Something went wrong, it is not you, Please try after sometime{e}")
-        payload= {
-            "id": user.user_id,
-            "verified_email":user.verified_email,
-            "access_type":user.access_type,
-            "picture": user.picture,
-            "provider": user.provider,
-            "email":user.email_address
-        }
+    payload= {
+        "id": user.user_id,
+        "verified_email":user.verified_email,
+        "access_type":user.access_type,
+        "picture": user.picture,
+        "provider": user.provider,
+        "email":user.email_address
+    }
     try:
         token = create_token(user_data=payload)
         print(token)
